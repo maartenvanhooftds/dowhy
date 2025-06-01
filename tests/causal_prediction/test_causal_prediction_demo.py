@@ -3,8 +3,6 @@ import pytest
 import torch
 import pytorch_lightning as pl
 from torch.utils.data import TensorDataset
-import random
-import numpy as np
 from dowhy.causal_prediction.dataloaders.get_data_loader import get_loaders
 from dowhy.causal_prediction.models.networks import MLP, Classifier
 from dowhy.causal_prediction.algorithms.erm import ERM
@@ -13,17 +11,15 @@ from dowhy.datasets import linear_dataset
 
 pytestmark = pytest.mark.skipif(torch is None or pl is None, reason="torch or pytorch_lightning not installed")
 
-N_SAMPLES = 1_000
-
 
 class LinearTensorDataset:
     N_WORKERS = 0
 
-    def __init__(self, n_envs, n_samples, input_shape=(1,), num_classes=2):
+    def __init__(self, n_envs, n_samples, input_shape, num_classes):
         self.input_shape = input_shape
         self.num_classes = num_classes
         self.datasets = []
-        # Generate different environments by varying the seed
+
         for env in range(n_envs):
             data = linear_dataset(
                 beta=10,
@@ -34,15 +30,14 @@ class LinearTensorDataset:
                 outcome_is_binary=True,
             )
             df = data["df"]
+
             # Use treatment as input, outcome as label
             x = torch.tensor(df[data["treatment_name"]].values, dtype=torch.float32).reshape(-1, 1)
             y = torch.tensor(df[data["outcome_name"]].values, dtype=torch.long)
-            # Optionally, use common causes as attributes
-            cc_names = data.get("common_causes_names", [])
-            if cc_names:
-                a = torch.tensor(df[cc_names].values, dtype=torch.float32)
-            else:
-                a = torch.zeros_like(x)
+
+            # Use common causes as attributes
+            cc_names = data["common_causes_names"]
+            a = torch.tensor(df[cc_names].values, dtype=torch.float32)
             self.datasets.append(TensorDataset(x, y, a))
 
     def __getitem__(self, index):
@@ -57,9 +52,9 @@ class LinearTensorDataset:
     (ERM, {}),
     (CACM, {"gamma": 1e-2, "attr_types": ["causal"], "lambda_causal": 10.}),
 ])
-def test_mnist_causalattribute_training_and_eval(algorithm_cls, algorithm_kwargs, fixed_seed):
+def test_causal_prediction_training_and_eval(algorithm_cls, algorithm_kwargs, fixed_seed):
     # Use the new linear dataset-based class
-    dataset = LinearTensorDataset(n_envs=4, n_samples=N_SAMPLES, input_shape=(1,), num_classes=2)
+    dataset = LinearTensorDataset(n_envs=4, n_samples=1000, input_shape=(1,), num_classes=2)
     loaders = get_loaders(dataset, train_envs=[0, 1], batch_size=64, val_envs=[2], test_envs=[3])
 
     # Model
