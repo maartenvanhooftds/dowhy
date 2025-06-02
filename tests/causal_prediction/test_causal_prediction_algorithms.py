@@ -9,8 +9,6 @@ from dowhy.causal_prediction.algorithms.erm import ERM
 from dowhy.causal_prediction.algorithms.cacm import CACM
 from dowhy.datasets import linear_dataset
 
-pytestmark = pytest.mark.skipif(torch is None or pl is None, reason="torch or pytorch_lightning not installed")
-
 
 class LinearTensorDataset:
     N_WORKERS = 0
